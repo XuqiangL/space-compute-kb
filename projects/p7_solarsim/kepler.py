@@ -28,26 +28,53 @@ def solve_kepler(M_rad: float, e: float, tol: float = 1e-12) -> float:
     return E
 
 
+def solve_kepler_hyperb(M_rad: float, e: float, tol: float = 1e-12) -> float:
+    """Hyperbolic Kepler equation: e*sinh(F) - F = M."""
+    F = M_rad
+    if abs(F) < 1e-14:
+        return 0.0
+    for _ in range(60):
+        f = e * math.sinh(F) - F - M_rad
+        fp = e * math.cosh(F) - 1.0
+        dF = f / fp
+        F -= dF
+        if abs(dF) < tol:
+            break
+    return F
+
+
 def elements_to_state(a, e, i_deg, Om_deg, w_deg, M_deg):
     """Keplerian elements -> ecliptic-frame position (AU).
 
-    a in AU, angles in degrees. Returns (x, y, z) and true anomaly (deg).
+    a in AU (negative = hyperbola when e>1), angles in degrees.
+    Returns (x, y, z) and true anomaly (deg).
     """
     i = math.radians(i_deg)
     Om = math.radians(Om_deg)
     w = math.radians(w_deg)
     M = math.radians(M_deg)
-    E = solve_kepler(M, e)
-    xp = a * (math.cos(E) - e)
-    yp = a * math.sqrt(1.0 - e * e) * math.sin(E)
+    if e > 1.0:
+        ah = abs(a)
+        F = solve_kepler_hyperb(M, e)
+        xp = ah * (e - math.cosh(F))
+        yp = ah * math.sqrt(e * e - 1.0) * math.sinh(F)
+    else:
+        E = solve_kepler(M, e)
+        xp = a * (math.cos(E) - e)
+        yp = a * math.sqrt(1.0 - e * e) * math.sin(E)
     cw, sw = math.cos(w), math.sin(w)
     cO, sO = math.cos(Om), math.sin(Om)
     ci, si = math.cos(i), math.sin(i)
     x = (cO * cw - sO * sw * ci) * xp + (-cO * sw - sO * cw * ci) * yp
     y = (sO * cw + cO * sw * ci) * xp + (-sO * sw + cO * cw * ci) * yp
     z = (sw * si) * xp + (cw * si) * yp
-    nu = math.degrees(math.atan2(
-        math.sqrt(1.0 - e * e) * math.sin(E), math.cos(E) - e))
+    if e > 1.0:
+        nu = math.degrees(2.0 * math.atan2(
+            math.sqrt(e + 1.0) * math.sinh(F / 2.0),
+            math.sqrt(e - 1.0) * math.cosh(F / 2.0)))
+    else:
+        nu = math.degrees(math.atan2(
+            math.sqrt(1.0 - e * e) * math.sin(E), math.cos(E) - e))
     return (x, y, z), nu
 
 
