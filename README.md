@@ -71,6 +71,21 @@ NASA 开源任务设计软件 **GMAT（General Mission Analysis Tool）** 的全
 
 入口：[gmat-architecture-docs/CH00-README.md](gmat-architecture-docs/CH00-README.md)
 
+## 附属资料：GMAT 帮助文档中文全译本（gmat-help-zh/）
+
+GMAT R2026a 官方帮助文档（`docs/help/html`，249 个页面）的**完整中文翻译**——与上面的架构解析互补：架构解析讲"GMAT 代码怎么写"，这套文档讲"GMAT 怎么用、每个模型怎么算"。全部 249 篇按主题覆盖：
+
+| 主题 | 代表文档 |
+|---|---|
+| 入门与教程（第 5-16 章） | 第一个轨道仿真、霍曼转移、有限推力、火星 B 平面瞄准、月球飞掠优化、电推进、DSN 测量仿真与定轨、EKF/平滑器 |
+| 轨道与动力学参考 | SpacecraftOrbitState（12 种状态类型）、ForceModel（重力场/阻力/光压/潮汐）、Propagator（积分器+5 类星历传播器）、CoordinateSystem（22 种轴系） |
+| 姿态与硬件 | SpacecraftAttitude（8 种姿态模型）、推力器/贮箱/太阳电源/核电源/天线/应答机 |
+| 优化与求解 | DifferentialCorrector、SNOPT/VF13ad/Yukon/fmincon、Target/Vary/Achieve |
+| 轨道确定 | BatchEstimator、ExtendedKalmanFilter、Smoother、TrackingDataTypes、DSN 估计全流程教程 |
+| 脚本与 GUI | ScriptLanguage、33 个命令参考、OrbitView/GroundTrack/XYPlot、R2011a-R2026a 发行说明 |
+
+入口：[gmat-help-zh/README.md](gmat-help-zh/README.md)（导读与阅读路线）· [gmat-help-zh/index.md](gmat-help-zh/index.md)（总索引）· [gmat-help-zh/00-术语表.md](gmat-help-zh/00-术语表.md)
+
 ## 贯穿案例
 
 全书使用一个统一的虚拟案例星——**算星一号**（150 kg、550 km 晨昏 SSO、1 kW 算力载荷、3 年寿命）——在各模块中反复出现：模块 01 做预算表、02 做轨道设计、03 提平台需求、04 选器件与容错、05 做热设计、06 做可靠性、07 配链路、08 做力学加固、09 配地面段、10 排合规时间线、11 算经济账。
