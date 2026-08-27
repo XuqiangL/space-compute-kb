@@ -13,17 +13,31 @@
 | p5_scheduler | 09 运营调度 | SAA/地面窗口表/四维约束调度/下行容量 | 10 |
 | p6_mission | 12 全流程 | **端到端任务仿真**：发射→升轨→电源/热/辐射闸门→运营→离轨 | 9 |
 | p7_solarsim | 02 轨道力学(深空) | **太阳系工程仿真器 v2**：JPL 星历/21 颗卫星/小行星带 Kirkwood 空隙/柯伊伯带/哈雷彗星/真实星空/土星环/拉格朗日点/SOI/KSP 式机动节点/双曲线逃逸/ISS+算星一号，与真实 UTC 时钟对齐 | 38 |
+| transfer-sim | 02 轨道力学 + GMAT math-deep-dive | **地月转移轨道 C++/CUDA 仿真**：GMAT 公式逐函数迁移、CPU golden（47 单元测试）、CUDA kernel 对照、真实 GMAT 交叉验证（≤15 m） | 47 |
 
 ## 运行方法
 
 ```bash
-# 任一项目目录下
+# 任一 Python 项目目录下
 py -m unittest test_orbit -v      # p1 示例
 
 # 运行端到端任务仿真（输出完整 JSON 报告）
 cd projects/p6_mission
 py mission_sim.py
 ```
+
+### transfer-sim（C++/CUDA，需 VS2022 + CUDA 12.9）
+
+```bat
+cd projects\transfer-sim
+build_cpu.bat
+build\test_formulas.exe           :: 47/47 单元测试
+build\main_cpu.exe --out data     :: CPU golden 地月转移
+build_gpu.bat
+build\main_gpu.exe --M 256 --out data
+```
+
+详见 [transfer-sim/README.md](transfer-sim/README.md) 与 [transfer-sim/docs/TRANSFER_SIMULATION.md](transfer-sim/docs/TRANSFER_SIMULATION.md)。
 
 ## 端到端仿真输出解读（算星一号默认配置）
 

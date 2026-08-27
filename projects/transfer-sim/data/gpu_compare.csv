@@ -1,0 +1,10 @@
+# formula, max_abs_diff, mean_abs_diff
+accel_point_mass,1.332268e-15,1.917202e-19
+accel_j2,1.421085e-14,2.426388e-20
+accel_third_body,4.065758e-20,2.747804e-24
+cartesian_from_kepler,5.820766e-11,6.733917e-13
+anomaly_E_from_M,1.776357e-15,2.301083e-17
+mdot_from_isp,0.000000e+00,0.000000e+00
+mass_after_dv,0.000000e+00,0.000000e+00
+orbital_energy,2.980232e-08,1.850777e-09
+fixed_step_propagate,2.863817e-08,4.773028e-09

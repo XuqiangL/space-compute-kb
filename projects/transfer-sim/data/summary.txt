@@ -1,0 +1,9 @@
+Earth-Moon transfer (patched-conic, GMAT formula port)
+parking orbit : a=6578.1 km (alt=200 km), i=28.5 deg
+TLI delta-v   : 3.140 km/s
+integrator    : PrinceDormand45 (GMAT PD45 coefficients), tol=1.0e-11
+force model   : point mass + J2(1.082627e-03) + Moon 3rd body
+moon SOI      : 66182.9 km
+transfer time : 2.927 days
+perilune      : rp=7798.4 km (alt=6060.2 km)
+energy drift  : max|dE|=3.063e-02 (check of integrator)

@@ -1,0 +1,47 @@
+% reference_1day.script - GMAT reference run (same model as transfer-sim)
+% Scenario: LEO 200km i=28.5deg after TLI+3.14km/s, Earth point mass + JGM-2 2x0 (J2),
+% no Moon, PrinceDormand45, 1 day propagation, ReportFile per-step states for comparison.
+Create Spacecraft sat;
+Create ForceModel fm;
+Create Propagator prop;
+Create ReportFile rf;
+
+GMAT sat.DateFormat = TAIModJulian;
+GMAT sat.Epoch = '21544.500370768266';
+
+% Same TLI initial state as transfer-sim (cartesian_from_kepler + posigrade 3.14 km/s)
+sat.X  = 6578.1363;
+sat.Y  = 0.0;
+sat.Z  = 0.0;
+sat.VX = 0.0;
+sat.VY = 9.60042852924664;
+sat.VZ = 5.21260738892592;
+
+sat.Cd = 0;
+sat.Cr = 0;
+sat.DragArea = 0;
+sat.SRPArea = 0;
+
+fm.CentralBody = Earth;
+fm.PointMasses = {};
+fm.GravityField.Degree = 2;
+fm.GravityField.Order  = 0;
+fm.GravityField.PotentialFile = 'JGM2.cof';
+fm.Drag = None;
+fm.SRP = Off;
+
+prop.FM = fm;
+prop.Type = PrinceDormand45;
+prop.InitialStepSize = 60;
+prop.Accuracy = 1e-11;
+
+rf.Add = {sat.ElapsedSecs, sat.EarthMJ2000Eq.X, sat.EarthMJ2000Eq.Y, sat.EarthMJ2000Eq.Z, sat.EarthMJ2000Eq.VX, sat.EarthMJ2000Eq.VY, sat.EarthMJ2000Eq.VZ};
+rf.Precision = 12;
+rf.WriteHeaders = false;
+rf.LeftJustify = false;
+rf.ZeroFill = Off;
+rf.ColumnWidth = 23;
+rf.Filename = 'gmat_ref_1day.txt';
+
+BeginMissionSequence;
+Propagate prop(sat) {sat.ElapsedSecs = 86400};

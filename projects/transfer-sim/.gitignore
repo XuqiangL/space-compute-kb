@@ -1,0 +1,8 @@
+﻿# 编译产物
+build/
+*.obj
+*.exe
+*.exp
+*.lib
+*.pdb
+*.ilk
