@@ -68,8 +68,9 @@ NASA 开源任务设计软件 **GMAT（General Mission Analysis Tool）** 的全
 | CH04-08 | 执行引擎/工厂/解释器、命令系统、力模型与太阳系、传播器/机动/姿态/停止条件、参数/求解器/坐标系/SPICE 接口 |
 | CH09-12 | GUI 框架、动力学面板、命令面板、可执行程序与样例脚本 |
 | CH13-16 | 26 个插件体系、CSALT 优化器与互操作测试、文档与数据内核 |
+| **math-deep-dive/** | **公式与模型深度解析**（14 章）：时间/坐标系/轨道要素/积分器/插值/线性代数/姿态/引力/大气光压/推力/求解器/估计测量/CSALT/表达式引擎，每条附 LaTeX 公式 + 源码行号 |
 
-入口：[gmat-architecture-docs/CH00-README.md](gmat-architecture-docs/CH00-README.md)
+入口：[gmat-architecture-docs/CH00-README.md](gmat-architecture-docs/CH00-README.md) · 公式深度解析：[math-deep-dive/MD-00-index.md](gmat-architecture-docs/math-deep-dive/MD-00-index.md)
 
 ## 附属资料：GMAT 帮助文档中文全译本（gmat-help-zh/）
 
