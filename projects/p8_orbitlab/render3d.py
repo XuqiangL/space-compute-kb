@@ -79,14 +79,45 @@ class Camera:
         self.target[1] += (-dx_px * scale) * ry + (dy_px * scale) * uy
         self.target[2] += (-dx_px * scale) * rz + (dy_px * scale) * uz
 
-def draw_polylines(canvas, cam, lines, w, h, color, width=1, dash=None):
+    def earth_occluded(self, p):
+        """点 p 是否被地球遮挡（射线-球体求交，教学级精确遮挡）。
+
+        原理：从相机 C 向 p 发射线，若射线在到达 p 之前先击中地球球体
+        （球心 O 为原点、半径 RE），则 p 被地球挡住。
+        公式：u = (p−C)/|p−C|；t_ca = (O−C)·u（球心在射线上的投影距离）；
+        d² = |O−C|² − t_ca²（球心到射线的垂直距离²）；
+        d² > RE² → 射线与球不相交；否则近侧交点 t_hit = t_ca − √(RE²−d²)，
+        0 < t_hit < |p−C| → 遮挡。
+        """
+        (cx, cy, cz), _, _, _ = self._basis()
+        dx, dy, dz = p[0] - cx, p[1] - cy, p[2] - cz
+        dist = math.sqrt(dx * dx + dy * dy + dz * dz)
+        if dist < 1e-12:
+            return False
+        ux, uy, uz = dx / dist, dy / dist, dz / dist
+        # O − C = (−cx, −cy, −cz)
+        t_ca = -(cx * ux + cy * uy + cz * uz)
+        if t_ca < 0.0:
+            return False                      # 地球在相机视线反方向
+        oc2 = cx * cx + cy * cy + cz * cz
+        d2 = oc2 - t_ca * t_ca
+        re2 = RE_EARTH * RE_EARTH
+        if d2 > re2:
+            return False                      # 射线从地球旁掠过
+        t_hit = t_ca - math.sqrt(re2 - d2)    # 球体近侧交点
+        return 0.0 < t_hit < dist             # 交点在 p 之前 → p 被遮挡
+
+def draw_polylines(canvas, cam, lines, w, h, color, width=1, dash=None,
+                   occlude=False):
     """批量画 3D 折线：逐点投影后 canvas.create_line；
-    被相机裁掉（投影返回 None）的点处断线，自动分段处理。"""
+    被相机裁掉（投影返回 None）的点处断线，自动分段处理。
+    occlude=True 时，被地球遮挡的点同样断线——轨道/轨迹在地球背面
+    的部分不再"透视"显示（修复卫星看似在地球里面的问题）。"""
     for line in lines:
         seg = []
         for p in line:
             pr = cam.project(p, w, h)
-            if pr is None:                      # 相机后方 → 结束当前段
+            if pr is None or (occlude and cam.earth_occluded(p)):
                 if len(seg) >= 4:               # 至少 2 个屏幕点（4 个坐标）
                     canvas.create_line(*seg, fill=color, width=width, dash=dash)
                 seg = []
@@ -126,7 +157,12 @@ def draw_earth(canvas, cam, w, h, jd, rotate_on=True, texture=None,
             img_holder.append(img)
     else:
         canvas.create_oval(sx - r_px, sy - r_px, sx + r_px, sy + r_px,
-                           fill='#1a4d8f', outline='#4da6ff')
+                           fill='#1a4d8f', outline='')
+    # 地球边缘高亮圈（大气层亮环）：让轨道与地球的分界一眼可辨
+    canvas.create_oval(sx - r_px, sy - r_px, sx + r_px, sy + r_px,
+                       fill='', outline='#7fd4ff', width=2)
+    canvas.create_oval(sx - r_px - 3, sy - r_px - 3, sx + r_px + 3,
+                       sy + r_px + 3, fill='', outline='#2a5a8f', width=1)
     th = gmst_rad(jd) if rotate_on else 0.0
     lines = []
     n = 72
@@ -158,8 +194,10 @@ def draw_earth(canvas, cam, w, h, jd, rotate_on=True, texture=None,
                                font=('', 9, 'bold'))
 
 
-def draw_marker(canvas, cam, p, w, h, color, label, size=4):
-    """画圆点 + 文字标签（点在相机后方则不画）。"""
+def draw_marker(canvas, cam, p, w, h, color, label, size=4, occlude=False):
+    """画圆点 + 文字标签（点在相机后方或被地球遮挡则不画）。"""
+    if occlude and cam.earth_occluded(p):
+        return
     pr = cam.project(p, w, h)
     if pr is None:
         return

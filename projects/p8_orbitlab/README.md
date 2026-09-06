@@ -60,7 +60,7 @@ py test_orbitlab.py # 跑 17 个物理单元测试
 | `main.py` | 应用主类：双轨显示状态机 + 30FPS 动画循环 |
 | `docs/ARCHITECTURE.md` | 完整开发架构图（mermaid）+ 模块 API 契约 |
 
-## 测试（19 个，全部锁定物理数值）
+## 测试（21 个，全部锁定物理数值）
 
 - 六根数↔状态往返 < 1e-8；开普勒传播 10 圈能量守恒 < 1e-6
 - **J2 数值传播 1 天 vs 解析长期摄动率，偏差 < 5%**（内核与理论互验）
@@ -72,3 +72,4 @@ py test_orbitlab.py # 跑 17 个物理单元测试
 
 `earth_map.ppm`：NASA Blue Marble 衍生地球纹理（经 three.js 示例纹理
 `earth_atmos_2048` 缩放至 512×256）。NASA 影像为公共领域，感谢 three.js 项目。
+

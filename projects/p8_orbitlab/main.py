@@ -28,11 +28,13 @@ from earth_texture import EarthTexture
 from groundtrack import GroundTrackCanvas, inertial_to_latlon
 from panels import LeftPanel, RightPanel, BottomPanel
 
-# ---- 视觉配色（与教学效果图一致） --------------------------------------------
+# ---- 视觉配色（与教学效果图一致，高对比度区分） ------------------------------
 C_BG       = "#0a0e1a"   # 深空黑背景
 C_ORBIT    = "#ffffff"   # 参考轨道线：白
-C_PLANE    = "#00bcd4"   # 轨道面：青
-C_EQUATOR  = "#5a6270"   # 赤道面：灰
+C_PLANE    = "#00e5ff"   # 轨道面网格：亮青
+C_PLANE_F  = "#00acc1"   # 轨道面填充：青（gray50 抖动 → 半透明）
+C_EQUATOR  = "#8a94a6"   # 赤道面网格：亮灰
+C_EQUATOR_F = "#4a5568"  # 赤道面填充：石板灰（gray25 抖动）
 C_ARC_I    = "#4caf50"   # 倾角 i 弧：绿
 C_ARC_OM   = "#9c27b0"   # 升交点赤经 Ω 弧：紫
 C_ARC_W    = "#ff9800"   # 近地点幅角 ω 弧：橙
@@ -243,21 +245,21 @@ class OrbitLab:
         # ① 半透明盘面填充（先画，被地球遮挡中心 = 正确的远近遮挡关系）
         if disp["equator_plane"]:
             render3d.draw_filled_disc(c, cam, self.eq_ring, w, h,
-                                      "#3a4a5a", stipple="gray25")
+                                      C_EQUATOR_F, stipple="gray25")
         if disp["orbit_plane"]:
             render3d.draw_filled_disc(c, cam, self.plane_ring, w, h,
-                                      C_PLANE, stipple="gray25")
-        # ② 盘面网格线
+                                      C_PLANE_F, stipple="gray50")
+        # ② 盘面网格线（地球背面部分被遮挡裁剪）
         if disp["equator_plane"]:
             render3d.draw_polylines(c, cam, self.eq_lines, w, h,
-                                    C_EQUATOR, width=1)
+                                    C_EQUATOR, width=1, occlude=True)
         if disp["orbit_plane"]:
             render3d.draw_polylines(c, cam, self.plane_lines, w, h,
-                                    C_PLANE, width=1)
+                                    C_PLANE, width=1, occlude=True)
         if disp["axes"]:
             for name, line in self.axes.items():
                 render3d.draw_polylines(c, cam, [line], w, h,
-                                        C_AXIS[name], width=2)
+                                        C_AXIS[name], width=2, occlude=True)
                 render3d.draw_marker(c, cam, line[-1], w, h,
                                      C_AXIS[name], name, size=3)
         if disp["vernal"]:
@@ -270,16 +272,16 @@ class OrbitLab:
                             rotate_on=disp["earth_spin"],
                             texture=self.earth_tex,
                             img_holder=self._img_holder)
-        # 参考轨道（开普勒椭圆）
+        # 参考轨道（开普勒椭圆，地球背面段被遮挡）
         if disp["ref_orbit"]:
             render3d.draw_polylines(c, cam, self.ref_lines, w, h,
-                                    C_ORBIT, width=2)
-        # 近/远地点标记
+                                    C_ORBIT, width=2, occlude=True)
+        # 近/远地点标记（被地球遮挡时不画）
         render3d.draw_marker(c, cam, self.r_peri, w, h, "#80deea",
-                             "近地点", size=4)
+                             "近地点", size=4, occlude=True)
         render3d.draw_marker(c, cam, self.r_apo, w, h, "#b0bec5",
-                             "远地点", size=4)
-        # 角度弧（i/Ω/ω/ν 教学核心）
+                             "远地点", size=4, occlude=True)
+        # 角度弧（i/Ω/ω/ν 教学核心，背面段遮挡）
         if disp["arcs"]:
             for key, color, label in (("i", C_ARC_I, "i"),
                                       ("Om", C_ARC_OM, "Ω"),
@@ -288,17 +290,17 @@ class OrbitLab:
                 arc = self.arcs.get(key) or []
                 if len(arc) >= 2:
                     render3d.draw_polylines(c, cam, [arc], w, h,
-                                            color, width=3)
+                                            color, width=3, occlude=True)
                     mid = arc[len(arc) // 2]
                     render3d.draw_marker(c, cam, mid, w, h, color,
-                                         label, size=2)
-        # 真实轨迹（摄动传播的实际路径）
+                                         label, size=2, occlude=True)
+        # 真实轨迹（摄动传播的实际路径，背面段遮挡）
         if disp["trail"] and len(self.trail) >= 2:
             render3d.draw_polylines(c, cam, [self.trail], w, h,
-                                    C_TRAIL, width=1)
-        # 卫星当前位置
+                                    C_TRAIL, width=1, occlude=True)
+        # 卫星当前位置（被地球遮挡时隐藏 = 星食，物理正确）
         render3d.draw_marker(c, cam, tuple(self.prop.state[:3]), w, h,
-                             C_SAT, "卫星", size=6)
+                             C_SAT, "卫星", size=6, occlude=True)
 
     def _update_panels(self):
         """右栏数据 + 底栏时钟刷新（每帧）。"""

@@ -196,6 +196,31 @@ class TestTimeAndGeo(unittest.TestCase):
         self.assertAlmostEqual(math.sqrt(sum(c * c for c in P)), 1.0,
                                places=12)
 
+    def test_nu_arc_no_blowup_at_180(self):
+        # 回归测试：ν≈180° 时卫星与近地点方向几乎对径，
+        # 旧 slerp 实现 sinθ→0 导致弧点爆炸到 1e16 km（屏幕上拉出 wild 红线）。
+        # 新实现按角度直接采样，所有弧点模长必须恒等于弧半径。
+        from geometry3d import angle_arcs
+        for nu in (179.9, 180.0, 180.1, 270.0, 359.9):
+            arcs = angle_arcs(6978.1363, 0.1, 45.0, 30.0, 0.0, nu)
+            arc = arcs["nu"]
+            self.assertGreater(len(arc), 2)
+            r_expected = math.sqrt(arc[0][0] ** 2 + arc[0][1] ** 2
+                                   + arc[0][2] ** 2)
+            for p in arc:
+                r = math.sqrt(p[0] ** 2 + p[1] ** 2 + p[2] ** 2)
+                self.assertAlmostEqual(r, r_expected, delta=1e-6 * r_expected)
+                self.assertLess(r, 1e6)       # 绝不爆炸
+
+    def test_arcs_above_earth_surface(self):
+        # 角度弧必须浮在地球表面之上（否则被地球遮挡不可见）
+        from geometry3d import angle_arcs
+        arcs = angle_arcs(6978.1363, 0.1, 45.0, 30.0, 10.0, 120.0)
+        for key in ("i", "Om", "w", "nu"):
+            for p in arcs[key]:
+                r = math.sqrt(p[0] ** 2 + p[1] ** 2 + p[2] ** 2)
+                self.assertGreater(r, RE_EARTH)
+
 
 class TestPresets(unittest.TestCase):
     """教学预设轨道合法性（近地点必须在大气层之上）。"""
