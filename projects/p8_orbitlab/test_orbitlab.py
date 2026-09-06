@@ -165,6 +165,23 @@ class TestPerturbations(unittest.TestCase):
 class TestTimeAndGeo(unittest.TestCase):
     """时间系统与几何。"""
 
+    def test_earth_texture_loads(self):
+        # 世界地图纹理（PPM）应能加载为 256×512×3 数组
+        from earth_texture import load_texture
+        tex = load_texture()
+        self.assertIsNotNone(tex)
+        self.assertEqual(tex.shape, (256, 512, 3))
+
+    def test_earth_texture_render(self):
+        # 贴图球渲染：输出尺寸 2R×2R，盘外 alpha=0、盘心 alpha=255
+        from earth_texture import EarthTexture
+        et = EarthTexture()
+        arr, inside = et.render_array((1, 0, 0), (0, 1, 0), (0, 0, 1),
+                                      0.0, 64)
+        self.assertEqual(arr.shape, (128, 128, 3))
+        self.assertTrue(inside[64, 64])       # 盘心在盘内
+        self.assertFalse(inside[0, 0])        # 角落像素在盘外
+
     def test_gmst_at_j2000(self):
         # GMST(J2000.0) = 280.46061837°（IAU 1982）
         self.assertAlmostEqual(math.degrees(gmst_rad(JD0)) % 360.0,

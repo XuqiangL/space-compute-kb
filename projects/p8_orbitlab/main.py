@@ -24,6 +24,7 @@ from perturbations import PerturbConfig, j2_secular_rates, drag_da_dt_km_day
 from propagator import Propagator
 import geometry3d
 import render3d
+from earth_texture import EarthTexture
 from groundtrack import GroundTrackCanvas, inertial_to_latlon
 from panels import LeftPanel, RightPanel, BottomPanel
 
@@ -80,12 +81,17 @@ class OrbitLab:
         self.gt.pack(padx=6, pady=4)
 
         # ---- 相机与鼠标交互 -------------------------------------------------
+        # 约定（用户明确要求）：地球永远位于坐标系中心、大小只随用户滚轮缩放；
+        # 拖六根数滑块时变化的是轨道/轨道面，相机距离绝不被程序改动。
         self.cam = render3d.Camera()
+        self.cam.target = [0.0, 0.0, 0.0]     # 目标点锁定地心
+        self.earth_tex = EarthTexture()       # 世界地图贴图（缺失时自动兜底蓝球）
+        self._img_holder = []                 # 每帧持有贴图 PhotoImage 引用防 GC
         self._mouse = None
         self.canvas.bind("<ButtonPress-1>", self._on_press)
         self.canvas.bind("<B1-Motion>", self._on_drag)          # 左键旋转
         self.canvas.bind("<ButtonPress-3>", self._on_press3)
-        self.canvas.bind("<B3-Motion>", self._on_pan)           # 右键平移
+        self.canvas.bind("<B3-Motion>", self._on_drag)          # 右键也旋转（禁平移）
         self.canvas.bind("<MouseWheel>", self._on_wheel)        # 滚轮缩放
 
         # ---- 仿真状态 -------------------------------------------------------
@@ -107,6 +113,9 @@ class OrbitLab:
         self._fps = 0.0
 
         self.on_params_changed()          # 初始构建
+        # 相机初始距离只在这里设一次（按初始轨道尺度），之后完全交给用户滚轮
+        a0 = self.ref_el["a"]
+        self.cam.dist = max(3.0 * a0 * (1.0 + self.ref_el["e"]), 15000.0)
         # 演示/冒烟模式：ORBITLAB_AUTOPLAY=1 时自动以高倍率播放
         import os
         if os.environ.get("ORBITLAB_AUTOPLAY") == "1":
@@ -155,13 +164,19 @@ class OrbitLab:
 
     # ------------------------------------------------------------------ 几何
     def _rebuild_geometry(self, el):
-        """由当前六根数重建全部静态几何层（参考轨道/轨道面/赤道面/角度弧）。"""
+        """由当前六根数重建全部静态几何层（参考轨道/轨道面/赤道面/角度弧）。
+
+        注意：这里**绝不改动相机**——拖滑块时只有轨道和轨道面缩放，
+        地球与坐标系大小保持用户设定的视角不变。
+        """
         a, e = el["a"], el["e"]
         i, Om, w, nu = el["i"], el["Om"], el["w"], el["nu"]
         self.ref_lines = [orbit_polyline(a, e, i, Om, w)]
         R = max(a * (1.0 + e) * 1.15, RE_EARTH * 1.8)   # 盘面半径覆盖远地点
         self.plane_lines = geometry3d.orbit_plane_disc(a, e, i, Om, w)
+        self.plane_ring = geometry3d.orbit_plane_ring(a, e, i, Om, w)
         self.eq_lines = geometry3d.equator_disc(R)
+        self.eq_ring = geometry3d.equator_ring(R)
         self.arcs = geometry3d.angle_arcs(a, e, i, Om, w, nu)
         self.axes = geometry3d.axes_lines(R * 1.1)
         self.vernal = geometry3d.vernal_equinox_line(R * 1.25)
@@ -169,28 +184,35 @@ class OrbitLab:
         P = perigee_dir(i, Om, w)
         self.r_peri = tuple(P[k] * a * (1.0 - e) for k in range(3))
         self.r_apo = tuple(-P[k] * a * (1.0 + e) for k in range(3))
-        # 相机距离自适应轨道尺度
-        self.cam.dist = max(3.0 * a * (1.0 + e), 15000.0)
 
     # ------------------------------------------------------------------ 推进
     def _advance(self, dt_sim_s):
-        """数值传播 dt_sim_s 秒，并追加轨迹/星下点（抽稀控制点数）。"""
-        self.prop.step(dt_sim_s)
-        self.elapsed_s += dt_sim_s
-        r = self.prop.state[:3]
-        if len(self.trail) == 0 or self._dist(self.trail[-1], r) > \
-                max(self.ref_el["a"] * 0.002, 5.0):     # 空间抽稀
+        """数值传播 dt_sim_s 秒，并按**角距**抽稀追加轨迹/星下点。
+
+        轨迹合理性（修复"高倍率下轨迹变折线"）：
+        不按帧追加（高倍率时一帧可跳过半圈，轨迹成弦），而是把 dt_sim_s
+        切成若干子段传播，每段子弧 ≈ 0.5° 平近点角（dt_chunk = 0.5°/n，
+        n = √(μ/a³) 为平均运动），每段结束记一个轨迹点——
+        无论时间倍率多大，轨迹始终贴合真实椭圆。
+        每帧最多 240 子段防卡顿（超高倍率时子弧自动放宽）。
+        """
+        a = max(self.ref_el["a"], RE_EARTH + 100.0)
+        n = math.sqrt(MU_EARTH / a ** 3)          # 平均运动 rad/s
+        dt_chunk = math.radians(0.5) / n          # 0.5° 弧长对应的时间
+        n_chunks = max(1, min(240, int(dt_sim_s / dt_chunk) + 1))
+        dt_sub = dt_sim_s / n_chunks
+        for _ in range(n_chunks):
+            self.prop.step(dt_sub)
+            r = self.prop.state[:3]
             self.trail.append(tuple(r))
-            if len(self.trail) > 4000:                  # 点数上限防卡顿
-                self.trail = self.trail[-3000:]
             lat, lon, _ = inertial_to_latlon(r, self.prop.jd)
             self.gt_points.append((lat, lon))
-            if len(self.gt_points) > 3000:
-                self.gt_points = self.gt_points[-2000:]
-
-    @staticmethod
-    def _dist(p, q):
-        return math.sqrt(sum((p[k] - q[k]) ** 2 for k in range(3)))
+        self.elapsed_s += dt_sim_s
+        # 点数上限：约 5 圈轨道（720 点/圈），超出丢弃最旧段
+        if len(self.trail) > 3600:
+            self.trail = self.trail[-2400:]
+        if len(self.gt_points) > 3000:
+            self.gt_points = self.gt_points[-2000:]
 
     # ------------------------------------------------------------------ 主循环
     def _loop(self):
@@ -215,7 +237,17 @@ class OrbitLab:
         h = max(c.winfo_height(), 300)
         disp = self.left.get_display()
         cam = self.cam
+        cam.target = [0.0, 0.0, 0.0]          # 地心永远居中（禁平移的硬保险）
+        self._img_holder.clear()              # 释放上一帧贴图引用
 
+        # ① 半透明盘面填充（先画，被地球遮挡中心 = 正确的远近遮挡关系）
+        if disp["equator_plane"]:
+            render3d.draw_filled_disc(c, cam, self.eq_ring, w, h,
+                                      "#3a4a5a", stipple="gray25")
+        if disp["orbit_plane"]:
+            render3d.draw_filled_disc(c, cam, self.plane_ring, w, h,
+                                      C_PLANE, stipple="gray25")
+        # ② 盘面网格线
         if disp["equator_plane"]:
             render3d.draw_polylines(c, cam, self.eq_lines, w, h,
                                     C_EQUATOR, width=1)
@@ -233,9 +265,11 @@ class OrbitLab:
                                         self.vernal[1], w, h, C_VERNAL)
             render3d.draw_marker(c, cam, self.vernal[-1], w, h,
                                  C_VERNAL, "春分点 ♈", size=3)
-        # 地球（含经纬网自转）
+        # ③ 地球（世界地图贴图，随 GMST 在惯性系中自转）
         render3d.draw_earth(c, cam, w, h, self.prop.jd,
-                            rotate_on=disp["earth_spin"])
+                            rotate_on=disp["earth_spin"],
+                            texture=self.earth_tex,
+                            img_holder=self._img_holder)
         # 参考轨道（开普勒椭圆）
         if disp["ref_orbit"]:
             render3d.draw_polylines(c, cam, self.ref_lines, w, h,
@@ -300,13 +334,6 @@ class OrbitLab:
         if self._mouse:
             self.cam.rotate((ev.x - self._mouse[0]) * 0.4,
                             (ev.y - self._mouse[1]) * 0.4)
-            self._mouse = (ev.x, ev.y)
-
-    def _on_pan(self, ev):
-        if self._mouse:
-            w = max(self.canvas.winfo_width(), 400)
-            h = max(self.canvas.winfo_height(), 300)
-            self.cam.pan(ev.x - self._mouse[0], ev.y - self._mouse[1], w, h)
             self._mouse = (ev.x, ev.y)
 
     def _on_wheel(self, ev):

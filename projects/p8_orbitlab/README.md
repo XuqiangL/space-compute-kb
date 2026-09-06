@@ -16,8 +16,8 @@ py main.py          # 启动图形界面（历元自动对齐系统 UTC 时钟�
 py test_orbitlab.py # 跑 17 个物理单元测试
 ```
 
-**免 Python 环境**：双击 `dist\OrbitLab.exe`（PyInstaller 单文件打包，8.1 MB，无任何依赖）。
-重新打包：`py -m PyInstaller --onefile --windowed --clean --name OrbitLab main.py`
+**免 Python 环境**：双击 `dist\OrbitLab.exe`（PyInstaller 单文件打包，21.5 MB，含 numpy 与地球纹理，无任何依赖）。
+重新打包：`py -m PyInstaller --onefile --windowed --clean --name OrbitLab --add-data "earth_map.ppm;." main.py`
 
 鼠标：左键拖拽旋转视角 / 右键拖拽平移 / 滚轮缩放。
 演示模式：`$env:ORBITLAB_AUTOPLAY='1'; py main.py`（自动 3600× 播放）。
@@ -27,8 +27,9 @@ py test_orbitlab.py # 跑 17 个物理单元测试
 | 需求 | 实现 |
 |---|---|
 | 六根数全部可调 | 左栏 a/e/i/Ω/ω/ν 滑块+数值框双向同步，带几何释义 |
-| 拖拽即时联动 | 滑块变化 → 参考椭圆/轨道面/角度弧立即重绘，卫星重置到新轨道 |
-| 颜色区分 | 轨道面青、赤道面灰、i 绿、Ω 紫、ω 橙、ν 红、卫星红、轨迹黄 |
+| 拖拽即时联动 | 滑块变化 → 参考椭圆/轨道面/角度弧立即重绘，卫星重置到新轨道；**相机距离不变**（地球与坐标系大小只随用户滚轮缩放，地心永远居中） |
+| 颜色区分 | 轨道面青色半透明填充、赤道面灰色半透明、i 绿、Ω 紫、ω 橙、ν 红、卫星红、轨迹黄；轨道与轨道面均可独立开关 |
+| 地球定位 | **世界地图贴图球**（NASA Blue Marble 衍生纹理）随 GMST 在 J2000 惯性系中实时自转，星下点图同纹理背景 |
 | 时间轴 | 底栏 ▶/⏸/单步/重置 + 对数速度滑块 1×~100000× + UTC 仿真时钟 + 周期进度条 |
 | 真实运动轨迹 | Cowell 数值积分（RK4，≤10s 子步），黄色轨迹线 + 星下点轨迹图 |
 | 工业级物理 | GMAT 同款常量与公式：J2（EGM96）、指数大气+共转阻力、日/月第三体、光压+圆柱阴影 |
@@ -51,16 +52,23 @@ py test_orbitlab.py # 跑 17 个物理单元测试
 | `elements.py` | 六根数↔状态矢量（PQW→IJK）、轨道采样、开普勒方程求解 |
 | `perturbations.py` | 五大摄动加速度 + J2 长期摄动率解析式 + PerturbConfig |
 | `propagator.py` | Cowell 传播器（RK4 定步，≤10s 子步自适应） |
-| `geometry3d.py` | 轨道面/赤道面网格、i/Ω/ω/ν 角度弧采样（slerp 球面插值） |
-| `render3d.py` | 球坐标相机+透视投影、地球绘制（经纬网随 GMST 自转） |
-| `groundtrack.py` | 星下点轨迹（惯性系→地固系 GMST 旋转，等距圆柱投影） |
+| `geometry3d.py` | 轨道面/赤道面网格与外环（供半透明填充）、i/Ω/ω/ν 角度弧采样（slerp 球面插值） |
+| `render3d.py` | 球坐标相机+透视投影、地球绘制（贴图球/经纬网随 GMST 自转）、stipple 半透明盘面 |
+| `earth_texture.py` | 世界地图纹理：PPM 加载 + numpy 球面正交逆映射 + 量化缓存 + 最小 PNG 编码器 |
+| `groundtrack.py` | 星下点轨迹（惯性系→地固系 GMST 旋转，等距圆柱投影 + 地图背景） |
 | `panels.py` | 左栏参数/右栏数据/底栏时间轴三面板 |
 | `main.py` | 应用主类：双轨显示状态机 + 30FPS 动画循环 |
 | `docs/ARCHITECTURE.md` | 完整开发架构图（mermaid）+ 模块 API 契约 |
 
-## 测试（17 个，全部锁定物理数值）
+## 测试（19 个，全部锁定物理数值）
 
 - 六根数↔状态往返 < 1e-8；开普勒传播 10 圈能量守恒 < 1e-6
 - **J2 数值传播 1 天 vs 解析长期摄动率，偏差 < 5%**（内核与理论互验）
 - 阻力单调衰减、共转大气阻力方向、光压阴影内为零、GMST(J2000)=280.46061837°
 - 6 条教学预设轨道（LEO/SSO/MEO/GEO/Molniya/GTO）近地点合法性
+- 地球纹理加载（256×512×3）与贴图球渲染（盘内/盘外掩码正确）
+
+## 纹理署名
+
+`earth_map.ppm`：NASA Blue Marble 衍生地球纹理（经 three.js 示例纹理
+`earth_atmos_2048` 缩放至 512×256）。NASA 影像为公共领域，感谢 three.js 项目。

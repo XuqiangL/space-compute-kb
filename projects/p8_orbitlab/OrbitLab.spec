@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('earth_map.ppm', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

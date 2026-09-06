@@ -97,24 +97,36 @@ def draw_polylines(canvas, cam, lines, w, h, color, width=1, dash=None):
             canvas.create_line(*seg, fill=color, width=width, dash=dash)
 
 
-def draw_earth(canvas, cam, w, h, jd, rotate_on=True):
-    """绘制地球：蓝色球体 + 随 GMST 自转的经纬网 + 极点标记。
+def draw_earth(canvas, cam, w, h, jd, rotate_on=True, texture=None,
+               img_holder=None):
+    """绘制地球：世界地图贴图球（优先）或蓝色球兜底 + 经纬网 + 极点标记。
 
-    ① 球体：投影地心得 (sx, sy, zc)，屏幕半径 R_px = f·RE/zc
-       （与点投影 sx = w/2 + f·xc/zc 同源：半径也是长度，同样按 1/zc 缩放）。
-    ② 经纬网：地固系经度 λ、纬度 φ 的点在惯性系中的坐标为
-       r = RE·(cosφ·cos(λ+θ), cosφ·sin(λ+θ), sinφ)，θ = GMST(jd)
-       —— 地球自转 = 地固系相对惯性系绕 Z 轴转 GMST 角。
-       赤道圆 + ±30°/±60° 纬线圈 + 6 条经线圈（0/60/…/300°）。
-    ③ 极点标记 N/S（极点在自转轴上，不受 GMST 影响）。
+    ① 贴图球：EarthTexture.render_photo 按当前相机基矢量与 GMST 渲染
+       RGBA 球面图（圆盘外透明），create_image 放在地心投影处。
+       物理意义：纹理随 GMST 旋转 = 地固系相对 J2000 惯性系的自转，
+       用户可直接看到本初子午线相对春分点方向（X 轴）的方位。
+    ② 兜底蓝球：投影地心得 (sx, sy, zc)，屏幕半径 R_px = f·RE/zc
+       （与点投影 sx = w/2 + f·xc/zc 同源：半径同样按 1/zc 缩放）。
+    ③ 经纬网：地固系经度 λ、纬度 φ 的点在惯性系中的坐标为
+       r = RE·(cosφ·cos(λ+θ), cosφ·sin(λ+θ), sinφ)，θ = GMST(jd)。
+    ④ 极点标记 N/S（极点在自转轴上，不受 GMST 影响）。
     """
     c = cam.project((0.0, 0.0, 0.0), w, h)
     if c is None:
         return
     sx, sy, zc = c
     r_px = cam.f * RE_EARTH / zc
-    canvas.create_oval(sx - r_px, sy - r_px, sx + r_px, sy + r_px,
-                       fill='#1a4d8f', outline='#4da6ff')
+    img = None
+    if texture is not None and texture.available:
+        img = texture.render_photo(cam, jd, r_px)
+    if img is not None:
+        # 贴图球（带透明通道，不遮挡背后轨道线）；holder 持有引用防 GC
+        canvas.create_image(sx, sy, image=img)
+        if img_holder is not None:
+            img_holder.append(img)
+    else:
+        canvas.create_oval(sx - r_px, sy - r_px, sx + r_px, sy + r_px,
+                           fill='#1a4d8f', outline='#4da6ff')
     th = gmst_rad(jd) if rotate_on else 0.0
     lines = []
     n = 72
@@ -166,3 +178,22 @@ def draw_dashed_line3d(canvas, cam, p1, p2, w, h, color, dash=(4, 4)):
     if a is None or b is None:
         return
     canvas.create_line(a[0], a[1], b[0], b[1], fill=color, dash=dash)
+
+
+def draw_filled_disc(canvas, cam, ring_pts, w, h, color, stipple='gray25'):
+    """半透明圆盘填充（轨道面/赤道面着色，教学上确认"面"的几何）。
+
+    tkinter 无 alpha 通道填充，用 stipple 抖动图案模拟半透明：
+    'gray25' = 25% 像素着色，底下场景隐约透出，视觉上即"透明色盘面"。
+    ring_pts：圆盘外环 3D 点列（闭合前采样），投影为多边形。
+    任一点在相机后方则放弃填充（退化情形，网格线仍照常绘制）。
+    """
+    pts = []
+    for p in ring_pts:
+        pr = cam.project(p, w, h)
+        if pr is None:
+            return
+        pts += [pr[0], pr[1]]
+    if len(pts) >= 6:
+        canvas.create_polygon(*pts, fill=color, outline='',
+                              stipple=stipple)

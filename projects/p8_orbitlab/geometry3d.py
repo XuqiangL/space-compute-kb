@@ -69,6 +69,21 @@ def equator_disc(radius, n_rings=3, n_seg=72):
     return [_ring(O, X, Y, RE_EARTH + (radius - RE_EARTH) * k / n_rings, n_seg)
             for k in range(1, n_rings + 1)]
 
+
+def orbit_plane_ring(a, e, i_deg, Om_deg, w_deg, n_seg=96):
+    """轨道面圆盘**外环**点列（供 render3d.draw_filled_disc 半透明填充）。
+
+    半径与 orbit_plane_disc 一致：R = 1.15·a·(1+e)，圆心在地心（轨道焦点）。
+    """
+    P, Q, _ = _pqw(i_deg, Om_deg, w_deg)
+    return _ring((0.0, 0.0, 0.0), P, Q, 1.15 * a * (1.0 + e), n_seg)
+
+
+def equator_ring(radius, n_seg=96):
+    """赤道面圆盘外环点列（惯性系 XY 平面，供半透明填充）。"""
+    return _ring((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0),
+                 radius, n_seg)
+
 def _slerp(u1, u2, t):
     """球面线性插值（两单位矢量间的大圆弧）：
         u(t) = [sin((1−t)·θ)·u1 + sin(t·θ)·u2] / sinθ，θ = arccos(u1·u2)，t∈[0,1]

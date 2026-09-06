@@ -37,7 +37,36 @@ class GroundTrackCanvas(tk.Canvas):
         self._blinking = False    # 闪光圈动画是否在跑
         self._pulse_on = False
         self._blink_r = 6
+        self._map_img = None      # 世界地图背景（PhotoImage，需持有引用）
+        self._load_map_background()
         self.draw_base()
+
+    def _load_map_background(self):
+        """把同一份世界地图纹理（earth_map.ppm）缩放为画布大小的背景图。
+
+        等距圆柱投影的纹理与星下点图投影方式相同，直接逐像素重采样即可。
+        失败（纹理缺失）则保持纯色背景，仅画网格。
+        """
+        try:
+            import numpy as np
+            from earth_texture import load_texture, EarthTexture
+            tex = load_texture()
+            if tex is None:
+                return
+            th, tw = tex.shape[0], tex.shape[1]
+            # 目标 (H, W) 网格 → 源纹理最近邻重采样
+            gy, gx = np.mgrid[0:self.H, 0:self.W]
+            si = np.clip((gy + 0.5) / self.H * th, 0, th - 1).astype(np.int32)
+            sj = np.clip((gx + 0.5) / self.W * tw, 0, tw - 1).astype(np.int32)
+            small = tex[si, sj]
+            # 压暗 40%：让红色轨迹线在地图上更醒目
+            small = (small.astype(np.float64) * 0.6).astype(np.uint8)
+            self._map_img = tk.PhotoImage(
+                data=EarthTexture._to_ppm_bytes(small))
+            self.create_image(0, 0, image=self._map_img, anchor='nw',
+                              tags='base')
+        except Exception:
+            self._map_img = None
 
     def _proj(self, lat, lon):
         """等距圆柱投影：x = (λ+180)/360·W，y = (90−φ)/180·H。"""
