@@ -87,6 +87,10 @@ GMAT R2026a 官方帮助文档（`docs/help/html`，249 个页面）的**完整�
 
 入口：[gmat-help-zh/README.md](gmat-help-zh/README.md)（导读与阅读路线）· [gmat-help-zh/index.md](gmat-help-zh/index.md)（总索引）· [gmat-help-zh/00-术语表.md](gmat-help-zh/00-术语表.md)
 
+## Skills 技能索引（.cursor/skills/）
+
+全库内容已组织为单一 Cursor Agent Skill：**aerospace-engineering**（`.cursor/skills/aerospace-engineering/SKILL.md`）——航天工程总入口，内含 12 个工程模块导航、8 个仿真项目运行方式、GMAT 参照（中译文档+架构/公式解析）与全局工作约定。内容文件不移动，skill 是分类与导航层。
+
 ## 贯穿案例
 
 全书使用一个统一的虚拟案例星——**算星一号**（150 kg、550 km 晨昏 SSO、1 kW 算力载荷、3 年寿命）——在各模块中反复出现：模块 01 做预算表、02 做轨道设计、03 提平台需求、04 选器件与容错、05 做热设计、06 做可靠性、07 配链路、08 做力学加固、09 配地面段、10 排合规时间线、11 算经济账。

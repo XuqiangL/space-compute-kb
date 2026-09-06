@@ -1,2 +1,6 @@
 __pycache__/
 *.pyc
+
+# p8_orbitlab 打包中间产物（dist/ 保留：exe 进仓库供直接运行）
+projects/p8_orbitlab/build/
+projects/p8_orbitlab/__pycache__/
