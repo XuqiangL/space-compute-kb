@@ -39,7 +39,7 @@ description: 航天工程全域知识库与仿真工具集——覆盖空间环�
 | p6_mission | 端到端任务仿真（六闸门 go/no-go） | 9 | `py mission_sim.py` |
 | p7_solarsim | 太阳系工程仿真器（tkinter 3D，实时 UTC） | 38 | `py main.py` 或 `启动仿真器.bat` |
 | transfer-sim | 地月转移 C++/CUDA（GMAT 交叉验证 ≤15 m） | 47 | 需 VS2022+CUDA 12.9：`build_cpu.bat`/`build_gpu.bat` |
-| p8_orbitlab | 卫星轨道动力学教学仿真器（六根数滑块联动 3D 角度弧、五大摄动、贴图地球+星下点） | 21 | `py main.py` 或 `dist\OrbitLab.exe` |
+| p8_orbitlab | 卫星轨道动力学教学仿真器（六根数滑块联动 3D 角度弧、五大摄动、贴图地球+星下点） | 22 | `py main.py` 或 `dist\OrbitLab.exe` |
 
 方案改动后跑 `p6_mission` 确认 `mission_go=true`；`mission_sim.CONFIG` 即算星一号参数表，改参数即做 trade study。
 
@@ -54,4 +54,5 @@ description: 航天工程全域知识库与仿真工具集——覆盖空间环�
 1. 测试锁定文档数值：改文档必须同步改测试，反之亦然（已借此修正 5 处勘误）
 2. 编辑中文 Markdown 用 PowerShell here-string + `Set-Content -Encoding UTF8`（本机 Write 工具会产出 UTF-16）
 3. 新增内容先归入对应模块/项目，并在本 SKILL.md 的导航表中登记
+
 

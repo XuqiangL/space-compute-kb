@@ -225,6 +225,20 @@ class TestTimeAndGeo(unittest.TestCase):
 class TestPresets(unittest.TestCase):
     """教学预设轨道合法性（近地点必须在大气层之上）。"""
 
+    def test_max_eccentricity_formula(self):
+        # 物理边界公式：e_max = 1 − (RE + h_min)/a
+        # a = 6978.1363 km 时 e_max ≈ 0.07164（rp 恰好 = 地表 + 100 km）
+        from elements import max_eccentricity, perigee_altitude
+        a = 6978.1363
+        e_max = max_eccentricity(a)
+        self.assertAlmostEqual(e_max, 1.0 - (RE_EARTH + 100.0) / a,
+                               places=12)
+        self.assertAlmostEqual(perigee_altitude(a, e_max), 100.0, places=6)
+        # GEO 高轨允许很扁：a = 42164 km 时 e_max ≈ 0.846
+        self.assertAlmostEqual(max_eccentricity(42164.0), 0.8463, places=3)
+        # a 低于安全高度时无可行轨道
+        self.assertEqual(max_eccentricity(RE_EARTH + 50.0), 0.0)
+
     def test_preset_perigee_safe(self):
         presets = [
             ("LEO/ISS", 6798.0, 0.0005, 51.6),

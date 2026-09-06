@@ -19,7 +19,8 @@ from datetime import datetime, timezone
 from constants import (MU_EARTH, RE_EARTH, J2_EARTH, julian_date,
                        jd_to_datetime_str)
 from elements import (elements_to_state, state_to_elements, orbit_polyline,
-                      perigee_dir, node_dir)
+                      perigee_dir, node_dir, max_eccentricity,
+                      perigee_altitude)
 from perturbations import PerturbConfig, j2_secular_rates, drag_da_dt_km_day
 from propagator import Propagator
 import geometry3d
@@ -107,6 +108,7 @@ class OrbitLab:
         self.trail = []                   # 真实轨迹点列（惯性系）
         self.gt_points = []               # 星下点轨迹 [(lat, lon), ...]
         self.prop = None                  # Cowell 传播器
+        self.impacted = False             # 再入/撞地标志（传播中高度<80km 触发）
         self.ref_lines = []               # 参考轨道折线
         self.plane_lines = []             # 轨道面网格
         self.eq_lines = []                # 赤道面网格
@@ -128,8 +130,29 @@ class OrbitLab:
 
     # ------------------------------------------------------------------ 回调
     def on_params_changed(self):
-        """左栏任何参数变化：重建参考轨道几何，卫星重置到新轨道 ν 处。"""
+        """左栏任何参数变化：重建参考轨道几何，卫星重置到新轨道 ν 处。
+
+        物理边界处理（GMAT 同款）：
+        近地点必须高于地表 100 km——rp = a(1−e) ≥ RE+100，
+        即 e ≤ e_max = 1 − (RE+100)/a。超限自动钳制并红字警告；
+        e 滑块上限随 a 动态收缩，从源头拖不出穿地轨道。
+        """
         el = self.left.get_elements()
+        a, e = el["a"], el["e"]
+        e_max = max_eccentricity(a)                    # h_min = 100 km
+        if e > e_max + 1e-12:
+            e = max(0.0, e_max)
+            el["e"] = e
+            self.left.set_elements(a, e, el["i"], el["Om"], el["w"],
+                                   el["nu"])
+            self.left.set_warning(
+                "⚠ 物理边界：近地点不能穿地！rp = a(1−e) ≥ 地表+100 km，"
+                "e 已钳制到 %.4f（a = %.0f km 时的最大值）" % (e_max, a))
+        else:
+            self.left.clear_warning()
+        # e 滑块上限随 a 联动收缩（绝对上限 0.95 防双曲线歧义）
+        self.left.rows["e"].set_range(0.0, max(0.001, min(0.95, e_max)))
+        self.impacted = False                          # 新轨道 → 清除再入状态
         self.ref_el = el
         # 摄动配置：A/m（m²/kg）× 质量 = 面积（m²）
         p = self.left.get_perturb()
@@ -206,6 +229,13 @@ class OrbitLab:
         for _ in range(n_chunks):
             self.prop.step(dt_sub)
             r = self.prop.state[:3]
+            # 撞击/再入检测：高度 < 80 km（卡门线附近）= 任务结束
+            if r[0] * r[0] + r[1] * r[1] + r[2] * r[2] < \
+                    (RE_EARTH + 80.0) ** 2:
+                self.impacted = True
+                self.playing = False
+                self.bottom.set_playing(False)
+                break
             self.trail.append(tuple(r))
             lat, lon, _ = inertial_to_latlon(r, self.prop.jd)
             self.gt_points.append((lat, lon))
@@ -301,6 +331,13 @@ class OrbitLab:
         # 卫星当前位置（被地球遮挡时隐藏 = 星食，物理正确）
         render3d.draw_marker(c, cam, tuple(self.prop.state[:3]), w, h,
                              C_SAT, "卫星", size=6, occlude=True)
+        # 再入/撞地警告覆盖层
+        if self.impacted:
+            c.create_text(w / 2, 60, text="⚠ 卫星已再入大气层（高度 < 80 km）"
+                                          "——任务结束",
+                          fill="#ff5252", font=("", 16, "bold"))
+            c.create_text(w / 2, 88, text="请调整六根数或点击 ⟲ 重置",
+                          fill="#d8dee9", font=("", 11))
 
     def _update_panels(self):
         """右栏数据 + 底栏时钟刷新（每帧）。"""

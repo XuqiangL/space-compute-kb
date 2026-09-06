@@ -22,7 +22,7 @@ elements.py — 经典六根数 ↔ 惯性系状态矢量（OrbitLab 物理内�
 """
 
 import math
-from constants import MU_EARTH
+from constants import MU_EARTH, RE_EARTH
 
 
 def _pqw_to_ijk_matrix(i_deg, Om_deg, w_deg):
@@ -170,6 +170,22 @@ def orbit_polyline(a, e, i_deg, Om_deg, w_deg, n=361):
         r, _v = elements_to_state(a, e, i_deg, Om_deg, w_deg, nu)
         pts.append((r[0], r[1], r[2]))
     return pts
+
+
+def max_eccentricity(a, h_min_km=100.0):
+    """物理可行的最大偏心率（硬约束，GMAT 同款边界处理）。
+
+    推导：近地点半径 rp = a(1−e) 必须高于地表最低安全高度 h_min
+        a(1−e) ≥ RE + h_min  ⇒  e ≤ 1 − (RE + h_min)/a
+    超过此值轨道穿地 = 卫星撞地（亚轨道弹道），物理上无意义。
+    a ≤ RE + h_min 时无可行椭圆（返回 0.0）。
+    """
+    return max(0.0, 1.0 - (RE_EARTH + h_min_km) / a)
+
+
+def perigee_altitude(a, e):
+    """近地点高度（km）= a(1−e) − RE。负值 = 轨道穿地（非法）。"""
+    return a * (1.0 - e) - RE_EARTH
 
 
 def perigee_dir(i_deg, Om_deg, w_deg):

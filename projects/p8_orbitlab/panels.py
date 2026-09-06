@@ -149,6 +149,18 @@ class ParamRow(tk.Frame):
         self._set_entry(self._value)
         self._updating = False
 
+    def set_range(self, vmin, vmax):
+        """动态修改滑块范围（不触发 on_change）。
+
+        用途：物理边界联动——例如 e 的上限随 a 收缩
+        （e_max = 1 − (RE+100km)/a，保证近地点不穿地）。
+        当前值超出新范围时滑块显示自动夹取，_value 由调用方负责先行钳制。
+        """
+        self.vmin, self.vmax = float(vmin), float(vmax)
+        self._updating = True
+        self.scale.config(from_=self.vmin, to=self.vmax)
+        self._updating = False
+
 
 class LeftPanel(tk.Frame):
     """左栏（300px）：轨道六根数 / 预设轨道 / 摄动开关 / 显示选项。
@@ -181,6 +193,12 @@ class LeftPanel(tk.Frame):
             tk.Label(self, text=hint, bg=PANEL, fg=GRAY, font=UI_FONT_S,
                      anchor="w").pack(side=tk.TOP, fill=tk.X, padx=28)
             self.rows[key] = row
+
+        # 物理边界警告条（近地点穿地时由 main 置红字提示，平时隐藏）
+        self.warn_label = tk.Label(self, text="", bg=PANEL, fg="#ff5252",
+                                   font=UI_FONT_S, anchor="w",
+                                   wraplength=280, justify=tk.LEFT)
+        self.warn_label.pack(side=tk.TOP, fill=tk.X, padx=6, pady=(2, 0))
 
         # ================= 2. 预设轨道 =================
         make_section(self, "预设轨道")
@@ -300,6 +318,14 @@ class LeftPanel(tk.Frame):
         for key, val in (("a", a), ("e", e), ("i", i),
                          ("Om", Om), ("w", w), ("nu", nu)):
             self.rows[key].set(val)
+
+    def set_warning(self, text):
+        """显示物理边界警告（红字）。"""
+        self.warn_label.config(text=text)
+
+    def clear_warning(self):
+        """清除物理边界警告。"""
+        self.warn_label.config(text="")
 
 
 # 公式卡文本（等宽字体显示，公式出处见 docs/ARCHITECTURE.md 第 4 节）
